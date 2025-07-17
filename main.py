@@ -1,83 +1,62 @@
 import numpy as np
+from PIL import Image
 
+# layers
 class Dense:
   def __init__(self, in_features, out_features):
-    self.w = np.random.randn(in_features, out_features)   # weights
-    self.b = np.zeros((1, out_features))                  # biases
+    self.w = np.random.randn(in_features, out_features)
+    self.b = np.zeros((1, out_features))
 
-  def forward(self, x):
-    self.x = x
+  def __call__(self, x):
     return x @ self.w + self.b
 
-  def backward(self, grad_output, lr):
-    dx = grad_output @ self.w.T
-    dw = self.x.T @ grad_output
-    db = grad_output
 
-    self.w -= lr * dw
-    self.b -= lr * db
-
-    return dx
-  
+# activation
 class ReLu:
-  def forward(self, x):
-    self.mask = x > 0
-    return self.mask * x
+  def __call__(self, x):
+    return np.maximum(0, x)
 
-  def backward(self, grad_output, lr):
-    return grad_output * self.mask
-  
-class MSE:
-  def forward(self, y_pred, y_true):
-    self.y_pred = y_pred
-    self.y_true = y_true
-    return np.mean((y_pred - y_true) ** 2)
+class Sigmoid:
+  def __call__(self, x):
+    return 1 / (1 + np.exp(-x))
 
-  def backward(self):
-    return 2 * (self.y_pred - self.y_true) / self.y_true.shape[0]
-  
+
+# network
 class Network:
-  def __init__(self, layers):
-    self.layers = layers
+  def __init__(self):
+    self.layers = [
+      Dense(2, 19),
+      ReLu(),
+      Dense(19, 35),
+      Sigmoid(),
+      Dense(35, 21),
+      ReLu(),
+      Dense(21, 3),
+      Sigmoid()
+    ]
 
   def forward(self, x):
     for layer in self.layers:
-      x = layer.forward(x)
+      x = layer(x)
     return x
-
-  def backward(self, grad, lr):
-    for layer in reversed(self.layers):
-      grad = layer.backward(grad, lr)
-
-
-data = [(1, 5), (2, 8), (3, 11)]
-
-net = Network([
-  Dense(1, 10),
-  ReLu(),
-  Dense(10, 5),
-  ReLu(),
-  Dense(5, 1)
-])
-
-mse = MSE()
-lr = 0.01
-
-for epoch in range(500):
-  total_loss = 0
-  for x_scalar, y_scalar in data:
-    x = np.array([[x_scalar]])
-    y = np.array([[y_scalar]])
-
-    out = net.forward(x)
-    loss = mse.forward(out, y)
-    total_loss += loss
-    grad = mse.backward()
-    net.backward(grad, lr)
   
-  if epoch % 10 == 0:
-    print(f'error: {total_loss:.4f}')
 
-test = np.array([[4]])
-pred = net.forward(test)
-print(f'Prediction: {pred}')
+# generate
+def generate_image(width, height, network):
+  img = Image.new('RGB', (width, height))
+  pixels = img.load()
+
+  for y in range(height):
+    for x in range(width):
+      nx = x / width
+      ny = y / height
+      input = np.array([[nx, ny]])
+      output = network.forward(input)[0]
+      r, g, b = (output * 256).astype(np.uint8)
+      pixels[x, y] = (r, g, b)
+  
+  img.save('neural.png')
+
+
+net = Network()
+generate_image(256, 256, net)
