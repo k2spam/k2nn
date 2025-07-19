@@ -34,7 +34,6 @@ class ReLu:
 
 class Sigmoid:
   def forward(self, x):
-    x = np.clip(x, -60, 60)
     self.out = 1 / (1 + np.exp(-x))
     return self.out
   
@@ -50,7 +49,7 @@ class MSE:
     return np.mean((prediction - target) ** 2)
 
   def backward(self):
-    return 2 * (self.pred - self.target) * self.target.shape[0]
+    return 2 * (self.pred - self.target) / self.target.size
 
 
 # network
@@ -59,9 +58,11 @@ class Network:
     self.layers = [
       Dense(2, 32),
       ReLu(),
-      Dense(32, 32),
+      Dense(32, 64),
       ReLu(),
-      Dense(32, 3),
+      Dense(64, 64),
+      ReLu(),
+      Dense(64, 3),
       Sigmoid()
     ]
     self.loss = MSE()
@@ -94,6 +95,7 @@ class Network:
 def load_image(path, size=(64, 64)):
   img = Image.open(path).convert('RGB').resize(size)
   width, height = img.size
+  print(width, height)
   pixels = np.array(img) / 255
   data = []
 
@@ -123,7 +125,7 @@ def generate_image(network, width, height, filename='copy.png'):
   img.save(filename)
 
 
-data, width, height = load_image("train_64x64.png")
+data, width, height = load_image("train_960x960.png")
 net = Network()
-net.train(data, 3000, 0.005)
+net.train(data, 10000, 1.11)
 generate_image(net, width, height)
